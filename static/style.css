@@ -1,0 +1,104 @@
+@font-face {
+    font-family: 'Freesentation';
+    src: url('assets/fonts/Freesentation-6SemiBold.ttf') format('truetype');
+}
+body {
+    padding: 20px;
+    font-family: 'Freesentation';
+}
+
+#map {
+    height: 500px;
+    margin-top: 20px;
+}
+
+#route-info {
+    margin-top: 20px;
+}
+
+.station-search-wrapper {
+    position: relative;
+}
+
+.station-search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+}
+
+.station-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.station-option:hover {
+    background-color: #f8f9fa;
+}
+
+.line-info {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 8px;
+    margin-bottom: 20px;
+}
+
+.route-timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-line {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #ddd;
+}
+
+.timeline-station {
+    position: relative;
+    margin-left: 40px;
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: -24px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+}
+
+.timeline-segment {
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+.segment-time {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 5px;
+}
+.segment-station {
+  font-size: 1em;
+  font-weight: bold;
+}
+.line-info {
+  margin-left: 5px;
+}

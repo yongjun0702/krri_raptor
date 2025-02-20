@@ -30,7 +30,6 @@ def serve_static(filename):
 # 역 목록 JSON 반환
 @app.route('/stations', methods=['GET'])
 def stations():
-    print(station_data)
     return jsonify(station_data)
 
 # 경로 검색

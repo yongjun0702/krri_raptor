@@ -5,161 +5,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>지하철 경로 검색</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .select2-container .select2-selection--single {
+      height: calc(2.25rem);
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .instruction {
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+    .dropdown-wrapper {
+      min-width: 220px;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1 class="mb-4">지하철 경로 검색</h1>
-    <form id="route-form" class="mb-4">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="from-station" class="form-label">출발역</label>
-          <select class="form-select" id="from-station" name="from_station" required>
-            <option value="">출발역 선택 중...</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label for="to-station" class="form-label">도착역</label>
-          <select class="form-select" id="to-station" name="to_station" required>
-            <option value="">도착역 선택 중...</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label for="departure-time" class="form-label">출발 시각</label>
-          <input type="time" class="form-control" id="departure-time" name="departure_time" required>
+  <div class="container py-5">
+    <h1 class="display-5 text-center mb-5">지하철 경로 검색</h1>
+    <form id="route-form">
+      <div class="mb-5 text-center">
+        <div class="instruction mb-3">출발지를 입력해주세요</div>
+        <div class="row g-3 justify-content-center">
+          <div class="col-auto dropdown-wrapper">
+            <select class="form-select" id="from-line" name="from_line" required>
+              <option value="">호선 선택</option>
+            </select>
+          </div>
+          <div class="col-auto dropdown-wrapper">
+            <select class="form-select" id="from-station" name="from_station" disabled required>
+              <option value="">역 선택</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="mt-3">
-        <button type="submit" class="btn btn-primary">경로 검색</button>
+      <div class="mb-5 text-center">
+        <div class="instruction mb-3">목적지를 입력해주세요</div>
+        <div class="row g-3 justify-content-center">
+          <div class="col-auto dropdown-wrapper">
+            <select class="form-select" id="to-line" name="to_line" required>
+              <option value="">호선 선택</option>
+            </select>
+          </div>
+          <div class="col-auto dropdown-wrapper">
+            <select class="form-select" id="to-station" name="to_station" disabled required>
+              <option value="">역 선택</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="mb-5 text-center">
+        <div class="row g-3 justify-content-center align-items-end">
+          <div class="col-auto">
+            <label for="departure-time" class="form-label">출발 시각</label>
+            <input type="time" class="form-control" id="departure-time" name="departure_time" required>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary mt-4">경로 탐색</button>
+          </div>
+        </div>
       </div>
     </form>
-    <div id="loading" class="d-none">
+    <div id="loading" class="d-none text-center mt-4">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
       <span class="ms-2">경로를 검색중입니다...</span>
     </div>
-    <div id="result" class="d-none">
-      <div class="alert alert-info">
+    <div id="result" class="d-none mt-4">
+      <div class="alert alert-info text-center">
         <span>총 소요시간: </span>
         <strong id="total-time"></strong>
         <span>분</span>
       </div>
       <div class="row">
-        <div class="col-md-4">
-          <h3>상세 경로</h3>
+        <div class="col-12 col-md-4">
           <div class="list-group" id="route-info"></div>
         </div>
-        <div class="col-md-8">
+        <div class="col-12 col-md-8">
           <div id="map"></div>
         </div>
       </div>
     </div>
   </div>
-
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="/static/js/subway.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log("DOM fully loaded. Fetching station list...");
-
-      // 역 목록 불러오기
-      fetch('/stations')
-        .then(response => response.json())
-        .then(data => {
-          console.log("Received stations:", data);
-          const fromSelect = document.getElementById('from-station');
-          const toSelect = document.getElementById('to-station');
-          // 초기 옵션 설정
-          fromSelect.innerHTML = '<option value="">출발역 선택</option>';
-          toSelect.innerHTML = '<option value="">도착역 선택</option>';
-          data.forEach(station => {
-            const opt = document.createElement('option');
-            opt.value = station.stop_id;
-            opt.textContent = station.stop_name;
-            fromSelect.appendChild(opt);
-
-            const opt2 = document.createElement('option');
-            opt2.value = station.stop_id;
-            opt2.textContent = station.stop_name;
-            toSelect.appendChild(opt2);
-          });
-        })
-        .catch(error => {
-          console.error("Error fetching stations:", error);
-          alert("역 목록 불러오기에 실패했습니다.");
-        });
-
-      // 경로 검색 폼 제출 이벤트 처리
-      const routeForm = document.getElementById('route-form');
-      routeForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        console.log("경로 검색 폼 제출됨");
-
-        // 폼 데이터 확인
-        const formData = new FormData(routeForm);
-        for (const [key, value] of formData.entries()) {
-          console.log(key, value);
-        }
-
-        const loading = document.getElementById('loading');
-        const result = document.getElementById('result');
-        const routeInfo = document.getElementById('route-info');
-
-        loading.classList.remove('d-none');
-        result.classList.add('d-none');
-
-        try {
-          const response = await fetch('/find_route', {
-            method: 'POST',
-            body: formData
-          });
-          console.log("find_route 응답 상태:", response.status);
-          const data = await response.json();
-          console.log("find_route 데이터:", data);
-          if (data.error) {
-            alert(data.error);
-            return;
-          }
-          document.getElementById('total-time').textContent = data.total_time;
-          // 노선 색 적용하여 경로 상세정보 표시
-          routeInfo.innerHTML = `
-            <div class="route-timeline">
-              ${data.route_info.map((stop, idx) => `
-                <div class="timeline-segment" style="border-left: 8px solid ${getLineColor(stop.operator, stop.line)}">
-                  <div class="segment-time">
-                    ${stop.arrival ? `<span>도착: ${stop.arrival}</span><br/>` : ''}
-                    ${stop.departure ? `<span>출발: ${stop.departure}</span>` : ''}
-                  </div>
-                  <div class="segment-station">
-                    <strong>${stop.station}</strong>
-                    <span class="line-info" style="color:${getLineColor(stop.operator, stop.line)}">
-                      ${stop.line_info ? `(${stop.line_info})` : ''}
-                    </span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          `;
-
-          // 지도 시각화 (필요 시, 아래 코드를 활성화)
-          const mapFrame = document.createElement('iframe');
-          mapFrame.style.width = '100%';
-          mapFrame.style.height = '100%';
-          mapFrame.style.border = 'none';
-          mapFrame.src = '/route_result.html';
-          document.getElementById('map').innerHTML = '';
-          document.getElementById('map').appendChild(mapFrame);
-
-          result.classList.remove('d-none');
-        } catch (error) {
-          console.error("find_route 오류:", error);
-          alert("경로 검색 중 오류가 발생했습니다.");
-        } finally {
-          loading.classList.add('d-none');
-        }
-      });
-    });
-  </script>
 </body>
 </html>

@@ -1,98 +1,106 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
-import folium
 
+# subway_raptor 모듈에서 주요 함수 임포트
 from subway_raptor import (
-    raptor_search,
-    time_to_seconds,
-    secs_to_hhmm,
-    load_gtfs,
-    create_gdf,
-    build_station_data
+    raptor_search,     # RAPTOR 알고리즘을 실행하는 함수
+    time_to_seconds,   # "HH:MM" 또는 "HH:MM:SS" 형식의 시간을 초 단위로 변환
+    secs_to_hhmm,      # 초 단위의 시간을 "HH:MM" 형식으로 변환
+    load_gtfs,         # GTFS 데이터 로드 및 전처리 함수
+    create_gdf,        # 정류장 좌표를 이용해 GeoDataFrame 생성 및 투영 변환
+    build_station_data # 여러 GTFS 테이블을 병합해 역 정보를 생성하는 함수
 )
+
+# 지도 그리기 함수 임포트
+from map_drawer import draw_route_on_map  # 경로와 역 정보를 기반으로 지도에 노선을 그리는 함수
 
 app = Flask(__name__)
 
-# GTFS 및 GeoDataFrame 초기화
+# GTFS 데이터 로드 및 전처리
 GTFS_PATH = 'kr_subway_gtfs.zip'
-feed = load_gtfs(GTFS_PATH)
-gdf = create_gdf(feed)
-station_data = build_station_data(feed)
+feed = load_gtfs(GTFS_PATH)         # GTFS 데이터 (정류장, 트립, 노선, 시간표 등)
+gdf = create_gdf(feed)              # 정류장 좌표 기반 GeoDataFrame (거리 계산 용)
+station_data = build_station_data(feed)  # 통합 역 정보 (stop_id, 역 이름, 노선 등)
 
+# 메인 페이지 제공
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
 
+# 정적 파일 제공
 @app.route('/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
 
-# 역 목록 JSON 반환
+# 역 정보 API
 @app.route('/stations', methods=['GET'])
 def stations():
     return jsonify(station_data)
 
-# 경로 검색
+# 경로 탐색 API: 클라이언트로부터 출발역, 도착역, 출발시간을 받아 경로를 탐색
 @app.route('/find_route', methods=['POST'])
 def find_route():
     try:
+        # 요청 파라미터 추출
         from_station = request.form.get('from_station')
         to_station = request.form.get('to_station')
         departure_time = request.form.get('departure_time')
         if not all([from_station, to_station, departure_time]):
             return jsonify({'error': '필수 파라미터가 누락되었습니다.'}), 400
 
+        # 출발 시간을 초 단위로 변환
         departure_secs = time_to_seconds(departure_time)
-        from_stop_id = from_station  # 실제로 station_data의 stop_id 값
-        to_stop_id = to_station
 
-        final, arrivals, parents, rounds_stats, stops, INF = raptor_search(
-            feed, gdf, from_stop_id, departure_secs, 3
+        # RAPTOR 알고리즘 실행
+        # feed: GTFS 데이터, gdf: 정류장 좌표, from_station: 출발역, departure_secs: 출발 시간, max_transfers: 최대 환승 횟수
+        final_result, _, _, rounds_stats, stops, INF = raptor_search(
+            feed, gdf, from_station, departure_secs, max_transfers=3
         )
-        if to_stop_id not in final:
+        if to_station not in final_result:
             return jsonify({'error': '경로를 찾지 못했습니다.'}), 404
 
-        tot_time, route, sched_info = final[to_stop_id]
+        # 최종 경로 결과 복원 (총 소요시간, 정류장 순서, 스케줄 정보)
+        tot_time, route, sched_info = final_result[to_station]
         total_minutes = int(tot_time / 60)
 
-        # station_info_map: build_station_data() 결과 매핑
+        # 역 정보 매핑: stop_id -> 역 정보
         station_info_map = {s['stop_id']: s for s in station_data}
+
+        # 경로에 따른 역 정보를 구성
         route_info = []
-        for i, stop_id in enumerate(route):
-            s_info = station_info_map.get(stop_id, {})
-            arr_time = sched_info[i][1]
-            dep_time = sched_info[i][2]
+        for sid in route:
+            s_info = station_info_map.get(sid, {
+                'stop_name': sid,
+                'operator': 'Unknown',
+                'line': 'Unknown',
+                'line_info': ''
+            })
             route_info.append({
-                'station': s_info.get('stop_name', stop_id),
-                'arrival': secs_to_hhmm(arr_time) if arr_time < INF else "",
-                'departure': secs_to_hhmm(dep_time) if dep_time < INF else "",
-                'operator': s_info.get('operator', 'Unknown'),
-                'line': s_info.get('line', 'Unknown'),
-                'line_info': s_info.get('line_info', '')
+                'station': s_info['stop_name'],
+                'stop_id': sid,
+                'operator': s_info['operator'],
+                'line': s_info['line'],
+                'line_info': s_info['line_info']
             })
 
-        # 경로 맵 생성: Folium으로 생성하여 static/route_result.html에 저장
-        m = folium.Map(location=[37.5665, 126.9780], zoom_start=11)
-        route_coords = []
-        for stop_id in route:
-            stop_row = feed.stops[feed.stops['stop_id'] == stop_id].iloc[0]
-            route_coords.append([stop_row.stop_lat, stop_row.stop_lon])
-            folium.CircleMarker(
-                location=[stop_row.stop_lat, stop_row.stop_lon],
-                radius=5,
-                color='blue',
-                fill=True
-            ).add_to(m)
-        folium.PolyLine(route_coords, weight=2, color='blue', opacity=0.8).add_to(m)
+        # 지도 그리기: draw_route_on_map() 함수는 feed, 경로, 그리고 각 역의 정보를 이용하여
+        # 지도에 원형 마커와 노선선을 표시
+        m = draw_route_on_map(feed, route, route_info)
         static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-        m.save(os.path.join(static_dir, 'route_result.html'))
+        map_file = os.path.join(static_dir, 'route_result.html')
+        m.save(map_file)
 
+        # 결과를 JSON으로 반환 (소요시간, 경로 정보, 탐색 통계, 지도 파일 URL)
         return jsonify({
             'total_time': total_minutes,
-            'route_info': route_info
+            'route_info': route_info,
+            'route': route,
+            'rounds_stats': rounds_stats,
+            'map_url': '/route_result.html'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Flask 서버 실행
     app.run(host='0.0.0.0', port=5001, debug=True)

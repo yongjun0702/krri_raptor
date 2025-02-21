@@ -2,20 +2,25 @@
     font-family: 'Freesentation';
     src: url('assets/fonts/Freesentation-6SemiBold.ttf') format('truetype');
 }
+
+/* 전체 바디 스타일 */
 body {
     padding: 20px;
     font-family: 'Freesentation';
 }
 
+/* 지도를 표시할 영역 */
 #map {
     height: 500px;
     margin-top: 20px;
 }
 
+/* 경로 정보(타임라인) 스타일 */
 #route-info {
     margin-top: 20px;
 }
 
+/* 검색 UI 관련 (필요시) */
 .station-search-wrapper {
     position: relative;
 }
@@ -46,6 +51,7 @@ body {
     background-color: #f8f9fa;
 }
 
+/* 노선 정보 텍스트 */
 .line-info {
     color: #666;
     font-size: 0.9em;
@@ -53,11 +59,13 @@ body {
     margin-bottom: 20px;
 }
 
+/* 타임라인 전체 컨테이너 */
 .route-timeline {
     position: relative;
     padding: 20px 0;
 }
 
+/* 타임라인 수직 라인 (예: 필요시) */
 .timeline-line {
     position: absolute;
     left: 20px;
@@ -67,6 +75,7 @@ body {
     background: #ddd;
 }
 
+/* 각 역 정보 영역 */
 .timeline-station {
     position: relative;
     margin-left: 40px;
@@ -74,6 +83,7 @@ body {
     padding-left: 20px;
 }
 
+/* 역 점 표시 */
 .timeline-dot {
     position: absolute;
     left: -24px;
@@ -84,21 +94,28 @@ body {
     transform: translateY(-50%);
 }
 
+/* 각 구간(segment) 카드 */
 .timeline-segment {
   margin-bottom: 10px;
   padding: 10px;
   background-color: #f8f9fa;
   border-radius: 4px;
 }
+
+/* 시간 표시 */
 .segment-time {
   font-size: 0.9em;
   color: #666;
   margin-bottom: 5px;
 }
+
+/* 역 이름 표시 */
 .segment-station {
   font-size: 1em;
   font-weight: bold;
 }
+
+/* 노선 정보 */
 .line-info {
   margin-left: 5px;
 }

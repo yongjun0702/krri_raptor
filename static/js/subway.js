@@ -184,14 +184,25 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(data.error);
         return;
       }
+      // 총 소요시간 표시
       $('#total-time').text(data.total_time);
+
+      // 경로 상세 표시: arrival/ departure 를 분리하여 표시
       $('#route-info').html(`
         <div class="route-timeline">
           ${data.route_info.map(stop => `
             <div class="timeline-segment" style="border-left: 8px solid ${getLineColor(stop.operator, stop.line)}">
               <div class="segment-time">
-                ${stop.arrival ? `<span>도착: ${stop.arrival}</span><br/>` : ''}
-                ${stop.departure ? `<span>출발: ${stop.departure}</span>` : ''}
+                ${
+                  stop.arrival
+                    ? `<span>도착: ${stop.arrival}</span><br/>`
+                    : ''
+                }
+                ${
+                  stop.departure
+                    ? `<span>출발: ${stop.departure}</span>`
+                    : ''
+                }
               </div>
               <div class="segment-station">
                 <strong>${stop.station}</strong>
@@ -203,6 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
           `).join('')}
         </div>
       `);
+
+      // 지도 iframe 표시
       const mapFrame = $('<iframe>', {
         src: '/route_result.html',
         css: {

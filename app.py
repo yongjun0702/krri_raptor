@@ -63,24 +63,59 @@ def find_route():
         tot_time, route, sched_info = final_result[to_station]
         total_minutes = int(tot_time / 60)
 
-        # 역 정보 매핑: stop_id -> 역 정보
+        # 역 정보 매핑: stop_id -> 역 메타정보
         station_info_map = {s['stop_id']: s for s in station_data}
 
-        # 경로에 따른 역 정보를 구성
+        # route_info 구성:
+        #     sched_info[i] = (stop_id, arrival_time, departure_time, wait_time, mode)
+        #     - arrival_time: 이 역에 '도착'한 시각
+        #     - departure_time: 이 역에서 '출발'한 시각(또는 부모가 된 역에서의 출발시각)
+        #     - 첫 역(출발역)은 별도 처리(실제 열차 출발시간) => i+1의 origin_dep 사용
+        #     - 마지막 역(도착역)은 도착시간만
+        #     - 중간 역은 도착/출발 모두
+        # -----------------------------------------------------------
         route_info = []
-        for sid in route:
-            s_info = station_info_map.get(sid, {
-                'stop_name': sid,
-                'operator': 'Unknown',
-                'line': 'Unknown',
-                'line_info': ''
-            })
+        for i, stop_id in enumerate(route):
+            s_info = station_info_map.get(stop_id, {})
+            # sched_info[i] = (stop_id, arrival_t, departure_t, wait_t, mode)
+            _, arrival_t, departure_t, _, _ = sched_info[i]
+
+            # 기본값 설정
+            arrival_str = ""
+            departure_str = ""
+
+            # 첫 정류장: 도착은 없음, "출발"은 실제 열차 출발시각(= 다음 역의 origin_dep) 사용
+            if i == 0:
+                # 경로가 1개 역뿐이라면(출발=도착 동일) => 출발/도착 모두 같은 역
+                if len(route) == 1:
+                    # 사실상 이동 없음 => 출발/도착 모두 user가 지정한 시각 근처일 수 있음
+                    # 여기서는 departure_t가 그대로 들어있을 수 있으니 사용
+                    departure_str = secs_to_hhmm(departure_t)
+                else:
+                    # 다음 역 sched_info에서 departure_t가 'origin_dep'로 저장되어 있으므로
+                    # i+1을 확인해서 departure 시각 추출
+                    _, _, next_dep_t, _, _ = sched_info[i+1]
+                    departure_str = secs_to_hhmm(next_dep_t)
+
+            # 마지막 정류장: "도착"만 표시
+            elif i == len(route) - 1:
+                arrival_str = secs_to_hhmm(arrival_t)
+
+            # 중간(환승) 정류장: 도착/출발 모두 표시
+            else:
+                arrival_str = secs_to_hhmm(arrival_t)
+                # 다음 역 sched_info에서 departure_t(=origin_dep)를 가져옴
+                if i + 1 < len(route):
+                    _, _, next_dep_t, _, _ = sched_info[i+1]
+                    departure_str = secs_to_hhmm(next_dep_t)
+
             route_info.append({
-                'station': s_info['stop_name'],
-                'stop_id': sid,
-                'operator': s_info['operator'],
-                'line': s_info['line'],
-                'line_info': s_info['line_info']
+                'station': s_info.get('stop_name', stop_id),
+                'arrival': arrival_str,    # "도착" 시간
+                'departure': departure_str, # "출발" 시간
+                'operator': s_info.get('operator', 'Unknown'),
+                'line': s_info.get('line', 'Unknown'),
+                'line_info': s_info.get('line_info', '')
             })
 
         # 지도 그리기: draw_route_on_map() 함수는 feed, 경로, 그리고 각 역의 정보를 이용하여

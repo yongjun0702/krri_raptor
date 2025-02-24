@@ -205,11 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `);
       const mapFrame = $('<iframe>', {
         src: '/route_result.html',
-        css: {
-          width: '100%',
-          height: '100%',
-          border: 'none'
-        }
+        css: { width: '100%', height: '100%', border: 'none' }
       });
       $('#map').empty().append(mapFrame);
       $('#result').removeClass('d-none');

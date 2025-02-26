@@ -1,6 +1,6 @@
+# server/map_line_info.py
 import folium
 from assets.color import getLineColor  # 노선 색상 함수
-
 
 def draw_route_on_map(feed, route, route_info):
     """
@@ -8,8 +8,8 @@ def draw_route_on_map(feed, route, route_info):
     route: 최종 경로에 포함된 stop_id 리스트 (예: ['RS_ACC1_S-1-4928', 'RS_ACC1_S-1-4929', ...])
     route_info: 각 정류장의 추가 정보 리스트 (각 정류장의 operator, line 등)
 
-    각 인접 구간에서 operator 또는 line 정보가 바뀌면 새로운 구간(segment)으로 구분하여,
-    각 구간마다 getLineColor()로 색상을 지정한 후 Folium 지도에 표시합니다.
+    각 인접 구간에서 operator 또는 line 정보가 바뀌면 새로운 구간(segment)으로 분리,
+    각 구간마다 getLineColor()로 색상을 지정한 후 Folium 지도에 표시.
     """
     # 첫 정류장을 기준으로 지도를 생성
     first_stop = feed.stops[feed.stops['stop_id'] == route[0]].iloc[0]

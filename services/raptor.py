@@ -1,3 +1,4 @@
+# server/raptor.py
 import partridge as ptg
 import geopandas as gpd
 import pyproj
@@ -204,7 +205,7 @@ def raptor_search(feed_data, geo_data, from_stop_id, departure_secs, max_transfe
                     start_pos = np.searchsorted(seq_arr, origin_seq)
                     # 열차를 타고 이동할 수 있는 모든 정류장에 대해 업데이트
                     for i in range(start_pos, len(seq_arr)):
-                        dest_id = stopid_arr[i]  #목적 정류장 ID
+                        dest_id = stopid_arr[i]  # 목적 정류장 ID
                         candidate_arrival = arr_arr[i]  # 해당 정류장에서의 도착 시간
                         if candidate_arrival < arrivals[round_idx + 1][dest_id]:
                             arrivals[round_idx + 1][dest_id] = candidate_arrival

@@ -9,3 +9,5 @@ gtfs-kit==5.2.6
 Werkzeug==3.0.1
 gunicorn==21.2.0
 partridge
+numpy
+pyproj

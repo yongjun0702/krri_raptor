@@ -1,6 +1,6 @@
 # server/response_formatter.py
 import os
-from services.raptor import secs_to_hhmm
+from services.gtfs.gtfs_loader import secs_to_hhmm
 from server.map_line_info import draw_route_on_map  # 지도 생성 함수
 
 def format_route_response(route_result, station_metadata, gtfs_feed, static_directory,

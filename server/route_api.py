@@ -1,7 +1,7 @@
 # server/route_api.py
 from flask import Blueprint, request, jsonify, current_app
-import os
-from services.raptor import raptor_search, time_to_seconds
+from services.gtfs.gtfs_loader import time_to_seconds
+from services.raptor.router import Raptor
 from server.response_formatter import format_route_response
 from config import MAX_TRANSFERS
 from utils.logging import setup_logging
@@ -25,14 +25,15 @@ def find_route():
         stations_gdf = current_app.config.get('STATIONS_GDF')
         station_metadata = current_app.config.get('STATION_METADATA')
 
-        # RAPTOR 알고리즘 실행
-        result, arrivals, parents, rounds_stats, all_stops, INF = raptor_search(
-            gtfs_feed, stations_gdf, origin_station, departure_time_secs, MAX_TRANSFERS
+        # RAPTOR 알고리즘 실행 (클래스 인스턴스 생성 후 메서드 호출)
+        router = Raptor(gtfs_feed, stations_gdf)
+        result, arrivals, parents, rounds_stats, all_stops, INF = router.raptor_search(
+            origin_station, departure_time_secs, MAX_TRANSFERS
         )
         if destination_station not in result:
             return jsonify({'error': '경로를 찾지 못했습니다.'}), 404
 
-        # Flask 앱의 정적 폴더를 사용
+        # Flask 앱의 정적 폴더 사용
         static_dir = current_app.static_folder
         total_time, station_route, route_details, map_file = format_route_response(
             result[destination_station], station_metadata, gtfs_feed, static_dir

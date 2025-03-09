@@ -43,7 +43,7 @@ class GTFSLoader:
         return self.feed_data
 
 def build_station_data(feed_data):
-    # GTFS 테이블을 병합하여 정류장 메타데이터 생성
+    # GTFS 테이블을 병합하여 정류장 메타데이터 생성 (시각화용)
     df_stops = feed_data.stops[['stop_id', 'stop_name']]
     df_trips = feed_data.trips[['trip_id', 'route_id']]
     df_routes = feed_data.routes[['route_id', 'route_short_name', 'agency_id']]

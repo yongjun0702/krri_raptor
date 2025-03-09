@@ -1,21 +1,22 @@
-# services/raptor/router.py
 import time
 import math
 import numpy as np
 from collections import defaultdict
 
 class Raptor:
-    def __init__(self, feed_data, geo_data, walking_speed=1.4, time_limit=10800):
+    def __init__(self, feed_data, geo_data, walking_speed=1.4, time_limit=10800, transfer_wait=60):
         """
         feed_data: GTFS feed data object
         geo_data: GeoDataFrame (AEQD 좌표계)
         walking_speed: 보행 속도 (m/s)
         time_limit: 열차 탐색 시간 제한 (초)
+        transfer_wait: 환승 시 최소 대기 시간 (초)
         """
         self.feed_data = feed_data
         self.geo_data = geo_data
         self.walking_speed = walking_speed
         self.time_limit = time_limit
+        self.transfer_wait = transfer_wait  # 환승 최소 대기 시간
         self.INF = math.inf
 
     def _build_stop_groups(self):
@@ -26,26 +27,36 @@ class Raptor:
         # trip_id별 정렬된 시간표 그룹 생성
         return {tid: grp.sort_values('stop_sequence') for tid, grp in self.feed_data.stop_times.groupby('trip_id')}
 
+    def _build_foot_paths(self, radius=320.0):
+        # 도보로 이동 가능한 인접 정류장 계산 (320m 이내)
+        # 각 정류장의 버퍼에 대해 개별적으로 query()를 호출하여 교차하는 정류장을 찾음
+        foot_paths = defaultdict(list)  # key: 정류장, value: (이웃 정류장, 도보 소요시간) 튜플 목록
+        stop_ids = list(self.geo_data.index)
+        buffers = self.geo_data.geometry.buffer(radius)
+
+        for i, buf in enumerate(buffers):
+            possible_neighbors = self.geo_data.sindex.query(buf, predicate="intersects")
+            for j in possible_neighbors:
+                if i == j:
+                    continue  # 자기 자신 제외
+                station_id = stop_ids[i]
+                neighbor_id = stop_ids[j]
+                dist = self.geo_data.iloc[i].geometry.distance(self.geo_data.iloc[j].geometry)
+                if dist <= radius:
+                # 도보 소요시간은 거리/보행속도 (0 이상)
+                    foot_paths[station_id].append((neighbor_id, dist / self.walking_speed if dist > 0 else 0))
+        return foot_paths
+
+
     def raptor_search(self, from_stop_id, departure_secs, max_transfers):
         # RAPTOR 알고리즘 수행
         stop_groups = self._build_stop_groups()
         trip_groups = self._build_trip_groups()
         trip_cache = {}
 
-        # 도보로 이동 가능한 인접 정류장 계산 (320m 이내)
-        spatial_index = self.geo_data.sindex
+        # 도보로 이동 가능한 인접 정류장 계산 (320m 이내) - 최적화된 함수 사용
         radius = 320.0
-        foot_paths = defaultdict(list)  # key: 정류장, value: (이웃 정류장, 도보 소요시간) 튜플 목록
-        for station_id, row in self.geo_data.iterrows():
-            station_buffer = row.geometry.buffer(radius)  # 현재 정류장을 기준으로 반경 버퍼 생성
-            # 버퍼와 교차하는 정류장들을 찾음
-            for idx in spatial_index.query(station_buffer, predicate="intersects"):
-                neighbor_id = self.geo_data.index[idx]
-                if neighbor_id != station_id:  # 자기 자신 제외
-                    dist = row.geometry.distance(self.geo_data.loc[neighbor_id].geometry)  # 두 정류장 사이의 거리 (미터)
-                    if dist <= radius:
-                        # 도보 소요시간은 거리/보행속도 (0 이상)
-                        foot_paths[station_id].append((neighbor_id, dist / self.walking_speed if dist > 0 else 0))
+        foot_paths = self._build_foot_paths(radius=radius)
 
         # 모든 정류장 리스트
         all_stops = self.feed_data.stops['stop_id'].unique()
@@ -87,7 +98,25 @@ class Raptor:
                     t_base = arrivals[round_idx][station_id]
                     if t_base == self.INF or station_id not in stop_groups:
                         continue
-                    effective_time = t_base  # 현재 시각으로 설정
+                    # 환승 시 최소 대기시간(transfer_wait) 반영 및 보행 소요시간 적용:
+                    # 만약 현재 라운드가 환승(0라운드가 아닌 경우)라면, 이전 정류장과의 직선 거리를 계산하여
+                    # 일정 기준(여기서는 320m 미만) 이하면 보행시간(거리/보행속도)을 effective_time에 반영함.
+                    if round_idx > 0 and parents[round_idx].get(station_id) is not None:
+                        prev_station = parents[round_idx][station_id][0]
+                        try:
+                            dist_transfer = self.geo_data.loc[station_id].geometry.distance(
+                                self.geo_data.loc[prev_station].geometry
+                            )
+                        except Exception:
+                            dist_transfer = None
+                        if dist_transfer is not None and dist_transfer < radius:
+                            walking_transfer_time = dist_transfer / self.walking_speed
+                            effective_time = t_base + max(walking_transfer_time, self.transfer_wait)
+                        else:
+                            effective_time = t_base + self.transfer_wait
+                    else:
+                        effective_time = t_base + self.transfer_wait
+
                     candidates = stop_groups[station_id]  # 해당 정류장에서 출발하는 열차 후보
                     # 시간 제한 내 열차 후보 필터링
                     filtered = candidates[
